@@ -62,28 +62,15 @@ Heroku pipelines allow us to group our application environments. This means you 
 
 Traditionally you will have to navigate through the Heroku dashboard to create a pipeline, which might take 2–3 minutes. But with terraform, it gets easier.
 
-Add the code snippet below to `pipeline.tf`
+All terraform resources assume the following syntax.
 ```
-# Heroku pipeline
-
-resource "heroku_pipeline" "pipeline" {
-  name = "${var.heroku_pipeline_name}"
+resource "resource_name" "resource_identifier"{
+    #argument
+    
 }
-
-resource "heroku_pipeline_coupling" "staging" {
-  app      = "${heroku_app.staging.name}"
-  pipeline = "${heroku_pipeline.pipeline.id}"
-  stage    = "staging"
-}
-
-resource "heroku_pipeline_coupling" "production" {
-  app      = "${heroku_app.production.name}"
-  pipeline = "${heroku_pipeline.pipeline.id}"
-  stage    = "production"
-}
-
 ```
-Update the `variables.tf` file with the newly added pipeline variable.
+
+Update the `variables.tf` file and add variables.
 ```
 # Heroku Provider variables
 variable "heroku_account_email" {}
@@ -118,6 +105,9 @@ variable "heroku_production_papertrail" {}
 variable "heroku_production_rollbar" {}
 
 ```
+## Create Heroku Apps
+Now that we have our pipeline setup, let's create apps that will be attached to this pipeline. Terraform creates Heroku apps via `heroku_app` resource. This resource takes only one required argument `name` , however, you can pass other arguments to customize your app further if required.
+
 Add the code snippet below to your `apps.tf` file.
 ```
 # Heroku apps
@@ -147,6 +137,113 @@ resource "heroku_app" "production" {
 }
 
 ```
+Let's talk about what the code we have written above does. In `apps.tf` we have declared two apps resources identified as `heroku_staging_app, heroku_production_app`. Terraform will create two Heroku apps when this code block is executed.
 
+## Attach Database Add-ons to the apps
+Having setup up our apps, we need to create database add-ons that our deployed apps will use to persist data. To create a Heroku add-ons via Terraform we will use the heroku_addon resource. This resource takes three arguments app, plan and config . More information can be found on the Argument Reference section in the documentation.
+
+Add the code snippet below to your `addons.tf` file.
+```
+# Addons
+
+# Staging Addons
+resource "heroku_addon" "database-staging" {
+  app  = "${heroku_app.staging.name}"
+  plan = "${var.heroku_staging_database}"
+}
+resource "heroku_addon" "newrelic-staging" {
+  app = "${heroku_app.staging.name}"
+  plan = "${var.heroku_staging_newrelic}"
+}
+resource "heroku_addon" "papertrail-staging" {
+  app = "${heroku_app.staging.name}"
+  plan = "${var.heroku_staging_papertrail}"
+}
+resource "heroku_addon" "rollbar-staging" {
+  app = "${heroku_app.staging.name}"
+  plan = "${var.heroku_staging_rollbar}"
+}
+
+# Production Addons
+resource "heroku_addon" "database-production" {
+  app  = "${heroku_app.production.name}"
+  plan = "${var.heroku_production_database}"
+}
+resource "heroku_addon" "newrelic-production" {
+  app  = "${heroku_app.production.name}"
+  plan = "${var.heroku_production_newrelic}"
+}
+resource "heroku_addon" "papertrail-production" {
+  app  = "${heroku_app.production.name}"
+  plan = "${var.heroku_production_papertrail}"
+}
+resource "heroku_addon" "rollbar-production" {
+  app  = "${heroku_app.production.name}"
+  plan = "${var.heroku_production_rollbar}"
+}
+```
+The code above creates `database`,`newrelic`, `papertrail` and `rollbar` add-ons and attaches them to the two apps we created earlier.You can add more add on if required.
+
+## Attach Heroku Apps to Heroku Pipeline
+Now that we have our apps, the only thing left is to attach them to the pipeline we created earlier. This is made possible by the heroku_pipeline_coupling resource. Once the apps have been created, they can be added to different stages in the pipeline
+
+Add the code snippet below to `pipeline.tf`
+
+```
+# Heroku pipeline
+
+resource "heroku_pipeline" "pipeline" {
+  name = "${var.heroku_pipeline_name}"
+}
+
+resource "heroku_pipeline_coupling" "staging" {
+  app      = "${heroku_app.staging.name}"
+  pipeline = "${heroku_pipeline.pipeline.id}"
+  stage    = "staging"
+}
+
+resource "heroku_pipeline_coupling" "production" {
+  app      = "${heroku_app.production.name}"
+  pipeline = "${heroku_pipeline.pipeline.id}"
+  stage    = "production"
+}
+```
+One thing you will notice that the app and pipeline arguments have been interpolated by variables we have not defined. This is because these values are outputs of other resources.
+
+## Plan (Test) Changes
+So far we have been writing code but we have not even tested if they work or not. Through terraform plan we can dry run our scripts against the provider and check if your scripts are okay. Lets to that
+
+![alt text](https://cdn-images-1.medium.com/max/1600/1*mc6GrUwoFoYMe8bxD8iGSA.png)
+
+The terraform init command is used to initialize a working directory containing Terraform configuration files. This is the first command that should be run after writing a new Terraform configuration or cloning an existing one from version control. It is safe to run this command multiple times.
+
+When we run terraform plan, terraform will dry run your configuration against the provider API and verify whether what you have specified is possible. If what we declared is not possible you might get errors, which might range from the wrong resource to unique names such as Heroku apps.
+
+Terraform plan also notifies us of how many resources will be created, updated or destroyed.
+
+## Applying Changes
+Once we are content with the changes, we can run terraform apply. This command will run the configuration against the provider and provision the resources for us.
+![alt text](https://cdn-images-1.medium.com/max/1400/1*wE8_7fTdve5xZm8yteDgQg.png)
+When terraform is applying your changes, it will report in real-time the progress of each resource declared. And once complete it also provides a report of resources created, changed, or destroyed.
+
+Once the command has completed executing, visit your heroku dashboard, there should be a pipeline with three apps attached to it.
+
+The pipeline.
+![alt text](https://cdn-images-1.medium.com/max/1600/1*d6UN3YGCcxAie_vqPCFz3Q.png)
+
+### The pipeline with 3 apps.
+![alt text](https://github.com/uCreateit/meetup-demo)
+
+As you have noticed it took very little time from running the command to having your infrastructure up and running. As compared to the manual process. Since this scripts can versioned, we can quickly spin out the same infrastructure anytime and get the same results.
+
+## Destroy Applied changes
+In one way or the other, you might want to delete your infrastructure. Terraform provides you will a command terraform destroy. This command will nuke all the resources that were created by terraform apply command
+
+![alt text](https://cdn-images-1.medium.com/max/800/1*GOHWpRkiH1A8OjuV-p4tMw.png)
+
+## Conclusion
+Automation is one of the key principles that DevOps engineers and Developers alike should learn to adopt it in their daily workflow. This approach helps to reduce the time spent on minor tasks and focus on improving and building products. It also introduces flexibility in that you can change and modify your infrastructure much easier as compared going the manual way.
+
+Terraform works well with a lot of platforms and services, making it a perfect tool to use to manage your infrastructure. It can be used across most common services and cloud platforms.
 
 

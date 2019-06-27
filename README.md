@@ -231,7 +231,7 @@ Once the command has completed executing, visit your heroku dashboard, there sho
 The pipeline.
 ![alt text](https://cdn-images-1.medium.com/max/1600/1*d6UN3YGCcxAie_vqPCFz3Q.png)
 
-### The pipeline with 3 apps.
+### The pipeline with 2 apps.
 ![alt text](https://github.com/JaspinderPawar/hello-chaos/blob/master/heroku-apps.png)
 
 As you have noticed it took very little time from running the command to having your infrastructure up and running. As compared to the manual process. Since this scripts can versioned, we can quickly spin out the same infrastructure anytime and get the same results.

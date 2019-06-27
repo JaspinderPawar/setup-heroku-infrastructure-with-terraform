@@ -232,7 +232,7 @@ The pipeline.
 ![alt text](https://cdn-images-1.medium.com/max/1600/1*d6UN3YGCcxAie_vqPCFz3Q.png)
 
 ### The pipeline with 3 apps.
-![alt text](https://github.com/uCreateit/meetup-demo)
+![alt text](https://github.com/uCreateit/meetup-demo/heroku-apps.png)
 
 As you have noticed it took very little time from running the command to having your infrastructure up and running. As compared to the manual process. Since this scripts can versioned, we can quickly spin out the same infrastructure anytime and get the same results.
 
